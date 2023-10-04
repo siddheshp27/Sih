@@ -20,7 +20,8 @@ const getAccList = require('../getAccList');
 //////////////////////////////
 
 const authMiddleware = (req, res, next) => {
-  const token = req.headers['authorization']?.split(' ')[1];
+  const token = req.headers && req.headers['authorization'] ? req.headers['authorization'].split(' ')[1] : undefined;
+
   if (!token) {
     return res.sendStatus(401); // unauthorized
   }

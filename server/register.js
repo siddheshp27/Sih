@@ -130,7 +130,7 @@ async function registerUser(obj) {
         }
       ];
     }
-    const userId = obj.role === 'organization' ? obj.orgId : obj.userId;
+    let userId = obj.role === 'organization' ? obj.orgId : obj.userId;
 
     const secret = await ca.register(
       {
@@ -157,7 +157,7 @@ async function registerUser(obj) {
     console.log(`Successfully registered and enrolled user ${userId} and imported it into the wallet`);
     return 'success';
   } catch (error) {
-    console.error(`Failed to register user ${userId}: ${error}`);
+    // console.error(`Failed to register user ${userId}: ${error}`);
     process.exit(1);
   }
 }

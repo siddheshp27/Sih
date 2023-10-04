@@ -7,17 +7,22 @@ const userUtils = require('../user');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const dotenv = require('dotenv');
+const cors = require('cors')
 dotenv.config();
 // const { authMiddleware, isAdmin } = require('../routes')
 
+router.use(cors());
+
 const authMiddleware = (req, res, next) => {
-  const token = req.headers['authorization']?.split(' ')[1];
+  const token = req.headers && req.headers['authorization'] ? req.headers['authorization'].split(' ')[1] : undefined;
+
   if (!token) {
     return res.sendStatus(401); // unauthorized
   }
-  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, data) => {
+  jwt.verify(token, "123456789", (err, data) => {
     if (err) {
-      return res.sendStatus(403); // forbidden
+      console.log(token)
+      return res.json({ err }) // forbidden
     }
     req.user = data;
     next();
@@ -29,7 +34,7 @@ const isAdmin = async (req, res, next) => {
   if (userRole === 'admin') {
     next();
   } else {
-    res.status(403).send();
+    res.json({ msg: "hi" });
   }
 };
 
@@ -231,11 +236,18 @@ router.post('/login', async (req, res) => {
 
   let userJson = { userId: username };
 
-  let accessToken = jwt.sign(userJson, process.env.ACCESS_TOKEN_SECRET, {
-    expiresIn: '30m'
-  });
-  let refreshToken = jwt.sign(userJson, process.env.REFRESH_TOKEN_SECRET);
-  res.json({ accessToken, refreshToken, userRole });
+  try {
+    let accessToken = jwt.sign(userJson, "123456789", {
+      expiresIn: '30m'
+    });
+
+    let refreshToken = jwt.sign(userJson, process.env.REFRESH_TOKEN_SECRET);
+
+    res.json({ accessToken, refreshToken, userRole });
+  } catch (error) {
+    console.error("Error signing the token:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 ///get-user-attrs/:userId

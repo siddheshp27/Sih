@@ -12,14 +12,17 @@ const jwt = require('jsonwebtoken');
 // const csrfProtection = csrfDSC();
 
 const authMiddleware = (req, res, next) => {
-  const token = req.headers['authorization']?.split(' ')[1];
+  const token = req.headers && req.headers['authorization'] ? req.headers['authorization'].split(' ')[1] : undefined;
+
   if (!token) {
     return res.sendStatus(401); // unauthorized
   }
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, data) => {
     if (err) {
+      console.log("JWT verification error:", err);
       return res.sendStatus(403); // forbidden
     }
+
     req.user = data;
     next();
   });
