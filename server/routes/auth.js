@@ -7,7 +7,7 @@ const userUtils = require('../user');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const dotenv = require('dotenv');
-const cors = require('cors')
+const cors = require('cors');
 dotenv.config();
 // const { authMiddleware, isAdmin } = require('../routes')
 
@@ -19,10 +19,10 @@ const authMiddleware = (req, res, next) => {
   if (!token) {
     return res.sendStatus(401); // unauthorized
   }
-  jwt.verify(token, "123456789", (err, data) => {
+  jwt.verify(token, '123456789', (err, data) => {
     if (err) {
-      console.log(token)
-      return res.json({ err }) // forbidden
+      console.log(token);
+      return res.json({ err }); // forbidden
     }
     req.user = data;
     next();
@@ -34,7 +34,7 @@ const isAdmin = async (req, res, next) => {
   if (userRole === 'admin') {
     next();
   } else {
-    res.json({ msg: "hi" });
+    res.json({ msg: 'hi' });
   }
 };
 
@@ -187,8 +187,8 @@ router.post('/registerOrg', authMiddleware, isAdmin, async (req, res) => {
   console.log('registerOrg');
   console.log(req.body);
 
-  let orgId = req.body.firstName;
-  let orgName = req.body.lastName;
+  let orgId = req.body.orgId;
+  let orgName = req.body.orgName;
   let password = req.body.password;
   let hashedPassword = await userUtils.encryptPassword(password);
   let address = req.body.address;
@@ -237,7 +237,7 @@ router.post('/login', async (req, res) => {
   let userJson = { userId: username };
 
   try {
-    let accessToken = jwt.sign(userJson, "123456789", {
+    let accessToken = jwt.sign(userJson, '123456789', {
       expiresIn: '30m'
     });
 
@@ -245,8 +245,8 @@ router.post('/login', async (req, res) => {
 
     res.json({ accessToken, refreshToken, userRole });
   } catch (error) {
-    console.error("Error signing the token:", error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error('Error signing the token:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

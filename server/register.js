@@ -27,10 +27,10 @@ async function registerUser(obj) {
     const wallet = await Wallets.newFileSystemWallet(walletPath);
 
     // Check to see if we've already enrolled the user.
-    const userIdentity = await wallet.get(orgId);
+    const userIdentity = await wallet.get(obj.orgId);
     if (userIdentity) {
-      console.log(`An identity for the user ${orgId} already exists in the wallet`);
-      return `An identity for the user ${orgId} already exists in the wallet`;
+      console.log(`An identity for the user ${obj.orgId} already exists in the wallet`);
+      return `An identity for the user ${obj.orgId} already exists in the wallet`;
     }
 
     // Check to see if we've already enrolled the admin user.
@@ -51,7 +51,7 @@ async function registerUser(obj) {
       attrs = [
         {
           name: 'role',
-          value: role,
+          value: obj.role,
           ecert: true
         },
         {
@@ -131,6 +131,7 @@ async function registerUser(obj) {
       ];
     }
     let userId = obj.role === 'organization' ? obj.orgId : obj.userId;
+    console.log(obj, obj.role, userId, obj.orgId);
 
     const secret = await ca.register(
       {
@@ -157,7 +158,7 @@ async function registerUser(obj) {
     console.log(`Successfully registered and enrolled user ${userId} and imported it into the wallet`);
     return 'success';
   } catch (error) {
-    // console.error(`Failed to register user ${userId}: ${error}`);
+    console.error(`Failed to register user : ${error}`);
     process.exit(1);
   }
 }
