@@ -1,237 +1,118 @@
-const express = require('express')
-const router = express.Router()
-
-const registerUser = require('../register')
-const updateUserAttributes = require('../editUser')
+const express = require('express');
+const router = express.Router();
 const userUtils = require('../user');
-const jwt = require('jsonwebtoken');
 
-// const { authMiddleware, isAdmin } = require('../routes')
+// const { readPatientHistoryData, readPatientMedicalData } = require('../queryDiagnosis');
+// const { revokeAccess, grantAccess } = require('../invokeDoctorAccessList');
+const jwt = require('jsonwebtoken');
+// const { authMiddleware } = require('../routes');
+
+// const csrfDSC = require("express-csrf-double-submit-cookie");
+
+// const csrfProtection = csrfDSC();
 
 const authMiddleware = (req, res, next) => {
-	const token = req.headers["authorization"]?.split(" ")[1];
-	if (!token) {
-		return res.sendStatus(401); // unauthorized
-	}
-	jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, data) => {
-		if (err) {
-			return res.sendStatus(403); // forbidden
-		}
-		req.user = data;
-		next();
-	});
+  const token = req.headers['authorization']?.split(' ')[1];
+  if (!token) {
+    return res.sendStatus(401); // unauthorized
+  }
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, data) => {
+    if (err) {
+      return res.sendStatus(403); // forbidden
+    }
+    req.user = data;
+    next();
+  });
 };
 
 const isAdmin = async (req, res, next) => {
-	const userRole = await userUtils.getUserRole(req.user.userId);
-	if (userRole === "admin") {
-		next();
-	} else {
-		res.status(403).send();
-	}
+  const userRole = await userUtils.getUserRole(req.user.userId);
+  if (userRole === 'admin') {
+    next();
+  } else {
+    res.status(403).send();
+  }
 };
 
-// const myRoute = (request, response) => {
-// 	const csrfToken = generateToken(response, request);
-	
-// 	res.json({ csrfToken });
-// };
+// get-patient-list
+router.get('/list', authMiddleware, async (req, res) => {
+  const patientList = await userUtils.getPatientList();
+  let patientListInfo = [];
 
-router.post("/register", authMiddleware, isAdmin, async (req, res) => {
-	
-	console.log("registerUser");
-	console.log(req.body);
+  if (!patientList) {
+    return res.sendStatus(404);
+  }
 
-	let firstName = req.body.firstName;
-	let lastName = req.body.lastName;
-	let role = req.body.role;
-	let username = req.body.userId;
-	let password = req.body.password;
-	let hashedPassword = await userUtils.encryptPassword(password);
-	let age = req.body.age.toString();
-	let gender = req.body.gender;
-	let address = req.body.address;
-	let phoneNumber = req.body.phoneNumber;
-	let specialization = req.body.specialization;
+  patientList.forEach((patient, index, array) => {
+    let patientId = patient.id;
+    let firstName = patient.attrs.find((attr) => attr.name === 'firstName');
+    let lastName = patient.attrs.find((attr) => attr.name === 'lastName');
+    let age = patient.attrs.find((attr) => attr.name === 'age');
+    let gender = patient.attrs.find((attr) => attr.name === 'gender');
+    let address = patient.attrs.find((attr) => attr.name === 'address');
+    let phoneNumber = patient.attrs.find((attr) => attr.name === 'phoneNumber');
 
-	let user = await userUtils.getUserById(username);
+    let patientInfo = {
+      userId: patientId,
+      firstName: firstName.value,
+      lastName: lastName.value,
+      age: age.value,
+      gender: gender.value,
+      address: address.value,
+      phoneNumber: phoneNumber.value
+    };
+    patientListInfo.push(patientInfo);
+  });
 
-	if (user) {
-		return res.sendStatus(409);
-	}
-
-	if (role === "doctor") {
-		await registerUser(firstName, lastName, role, username, hashedPassword, age, gender, address, phoneNumber, specialization);
-	} else {
-		await registerUser(firstName, lastName, role, username, hashedPassword, age, gender, address, phoneNumber);
-	}
-
-	res.json(req.body);
-	
+  res.json(patientListInfo);
 });
 
-router.post("/login", async (req, res) => {
-	console.log("login");
-	console.log(req.body);
+//get-current-medical-data/:patientId/:currentUserId
+router.get('/:patientId/medical-data', authMiddleware, async (req, res) => {
+  const patientId = req.params.patientId;
+  // const currentUserId = req.params.currentUserId
+  const currentUserId = req.query.currentUserId;
 
+  const medicalData = await readPatientMedicalData(currentUserId, patientId);
 
-
-	let username = req.body.username;
-	let password = req.body.password;
-	let user = await userUtils.getUserById(username);
-
-	if (!user) {
-		return res.sendStatus(404); // user doesn't exist
-	}
-	const userRole = await userUtils.getUserRole(username);
-
-	if (userRole === "admin") {
-		// const adminPassword = await userUtils.getAdminEnrollmentSecret()
-		const adminPassword = "adminpw";
-		if (adminPassword !== password) {
-			console.log("incorrect password");
-			return res.sendStatus(404);
-		}
-	} else {
-		const hashedPassword = await userUtils.getUserHashedPassword(username);
-		const isPasswordMatch = await userUtils.comparePasswords(password, hashedPassword);
-		if (!isPasswordMatch) {
-			console.log("incorrect password");
-			return res.sendStatus(404);
-		}
-	}
-
-	let userJson = { userId: username };
-
-	let accessToken = jwt.sign(userJson, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "30m" });
-	let refreshToken = jwt.sign(userJson, process.env.REFRESH_TOKEN_SECRET);
-	res.json({ accessToken, refreshToken });
+  res.json(medicalData);
 });
 
-///get-user-attrs/:userId
-router.get("/:userId/attrs", authMiddleware, async (req, res) => {
-	const userId = req.params.userId;
-	let userAttrs = await userUtils.getUserAttrs(userId);
+// get-history-medical-data/:patientId/:currentUserId
+router.get('/:patientId/history-medical-data/list', authMiddleware, async (req, res) => {
+  const patientId = req.params.patientId;
 
-	res.json(userAttrs);
+  // const currentUserId = req.params.currentUserId
+  const currentUserId = req.query.currentUserId;
+
+  const medicalHistoryData = await readPatientHistoryData(currentUserId, patientId);
+
+  if (!medicalHistoryData) {
+    return;
+  }
+  medicalHistoryData.shift(); // remove current medical data from history
+  res.json(medicalHistoryData);
 });
 
-router.put("/:userId/edit", authMiddleware, async (req, res) => {
-	let firstName = req.body.firstName;
-	let lastName = req.body.lastName;
-	let role = req.body.role;
-	let userId = req.body.userId;
-	let password = req.body.password;
-	let hashedPassword = await userUtils.encryptPassword(password);
-	let age = req.body.age.toString();
-	let gender = req.body.gender;
-	let address = req.body.address;
-	let phoneNumber = req.body.phoneNumber;
-	let specialization = req.body.specialization;
+//grant-doctor-access
+router.post('/:patientId/grant-access/:doctorId', authMiddleware, async (req, res) => {
+  const patientId = req.body.patientId;
+  const doctorId = req.body.doctorId;
+  const accessExpirationDate = req.body.accessExpirationDate;
 
-	// let user = await userUtils.getUserById(username)
-	// if(user){
-	//     return res.sendStatus(401)
-	// }
+  let doctorAccessList = await grantAccess(patientId, doctorId, accessExpirationDate);
 
-	if (role === "doctor") {
-		await updateUserAttributes(firstName, lastName, role, userId, hashedPassword, age, gender, address, phoneNumber, specialization);
-	} else {
-		await updateUserAttributes(firstName, lastName, role, userId, hashedPassword, age, gender, address, phoneNumber);
-	}
-
-	res.json(req.body);
+  res.json(doctorAccessList);
 });
 
-router.get("/:userId/role", authMiddleware, async (req, res) => {
-	const userId = req.params.userId;
+//revoke-doctor-access
+router.post('/:patientId/revoke-access/:doctorId', authMiddleware, async (req, res) => {
+  const patientId = req.body.patientId;
+  const doctorId = req.body.doctorId;
 
-	let userRole = await userUtils.getUserRole(userId);
+  let doctorAccessList = await revokeAccess(patientId, doctorId);
 
-	res.json({ userRole: userRole });
+  res.json(doctorAccessList);
 });
 
-// get-user-details/:userId
-router.get("/:userId/details", authMiddleware, async (req, res) => {
-	const userId = req.params.userId;
-	// const role = req.params.role;
-	let userAttrs = await userUtils.getUserAttrs(userId);
-
-	if (!userAttrs) {
-		return res.sendStatus(404);
-	}
-	const role = userAttrs.find((attr) => attr.name === "role").value;
-
-	let userInfo = {
-		userId: userId,
-		firstName: userAttrs.find((attr) => attr.name === "firstName").value,
-		lastName: userAttrs.find((attr) => attr.name === "lastName").value,
-		age: userAttrs.find((attr) => attr.name === "age").value,
-		gender: userAttrs.find((attr) => attr.name === "gender").value,
-		address: userAttrs.find((attr) => attr.name === "address").value,
-		phoneNumber: userAttrs.find((attr) => attr.name === "phoneNumber").value,
-	};
-
-	if (role === "doctor") {
-		userInfo.specialization = userAttrs.find((attr) => attr.name === "specialization").value;
-		// userInfo.push({specialization: userAttrs.find(attr => attr.name === "specialization").value})
-	}
-
-	res.json(userInfo);
-});
-
-router.post("/refresh-access-token", (req, res) => {
-	const { refreshToken } = req.body;
-	// if(!refreshTokens.includes(refreshToken)){
-	//     return res.sendStatus(403)
-	// }
-	console.log(refreshToken);
-	jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, (err, data) => {
-		if (err) {
-			console.log("error in refresh access token");
-			return res.sendStatus(403);
-		}
-
-		console.log("no error in refresh access token");
-
-		const userJson = {
-			userId: data.userId,
-		};
-		let newAccessToken = jwt.sign(userJson, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "30m" });
-		res.json({ accessToken: newAccessToken, refreshToken: refreshToken });
-	});
-});
-
-router.post("/access-token", (req, res) => {
-	const { accessToken } = req.body;
-
-	jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET, (err, data) => {
-		if (err) {
-			return res.sendStatus(403); // unauthorized
-		}
-		req.user = data;
-		res.json(accessToken);
-	});
-});
-
-router.post("/refresh-token", (req, res) => {
-	const { refreshToken } = req.body;
-
-	jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, (err, data) => {
-		if (err) {
-			return res.sendStatus(403); // unauthorized
-		}
-		req.user = data;
-		// next()
-		res.json(refreshToken);
-	});
-});
-
-router.get("/csrf-token", (req, res) => {
-	 const csrfToken = req.csrfToken()
-
-	 res.json({csrfToken})
-})
-
-	
 module.exports = router;

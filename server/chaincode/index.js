@@ -6,7 +6,6 @@
 
 // const MedicalContract = require('./lib/medicalContract');
 
-
 // shim.start(new MedicalContract());
 
 // import { MedicalContract } from './lib/medicalContract';
@@ -19,8 +18,7 @@
 // // shim.start(new MedicalContract());
 // export const contracts = [MedicalContract];
 
-const medicalContract = require('./lib/medicalContract');
+const certificateContract = require('./lib/certificateContract');
 
-
-module.exports.MedicalContract = medicalContract;
-module.exports.contracts = [medicalContract];
+module.exports.certificateContract = certificateContract;
+module.exports.contracts = [certificateContract];
