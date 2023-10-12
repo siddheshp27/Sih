@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-
 const registerUser = require('../register');
 const updateUserAttributes = require('../editUser');
 const userUtils = require('../user');
@@ -8,6 +7,7 @@ const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const dotenv = require('dotenv');
 const cors = require('cors');
+const { uploadToS3 } = require('../aws/awsS3');
 dotenv.config();
 // const { authMiddleware, isAdmin } = require('../routes')
 
@@ -161,7 +161,7 @@ async function setuReq(purpose, obj) {
 }
 
 router.post('/registerUser', async (req, res) => {
-  const redirectUrl = 'http://localhost:5173/addDetails';
+  const redirectUrl = 'http://localhost:5173/register';
 
   const response = await setuReq('register', { redirectUrl });
   res.json(response);
@@ -172,7 +172,14 @@ router.post('/getAadhar', async (req, res) => {
   console.log(dId);
 
   const response = await setuReq('getAadhar', { dId });
-  res.json(response.data);
+  const details = response.aadhaar;
+
+  const aId = details.maskedNumber;
+  const userName = aId.substring(aId.length - 4);
+  const buffer = Buffer.from(details.photo, 'base64');
+  const photo = await uploadToS3(userName + 'pp', buffer);
+  const resp = { photo, name: details.name, userName, gender: details.gender, dob: details.dateOfBirth };
+  res.json(resp);
 });
 
 router.post('/getDocument', async (req, res) => {
@@ -184,11 +191,35 @@ router.post('/getDocument', async (req, res) => {
 });
 
 router.post('/registerOrg', authMiddleware, isAdmin, async (req, res) => {
-  console.log('registerOrg');
+  console.log('Register Org!!!!');
   console.log(req.body);
 
   let orgId = req.body.orgId;
   let orgName = req.body.orgName;
+  let password = req.body.password;
+  let hashedPassword = await userUtils.encryptPassword(password);
+  let address = req.body.address;
+  let email = req.body.email;
+  let phoneNumber = req.body.phoneNumber;
+
+  let user = await userUtils.getUserById(orgId);
+
+  if (user) {
+    return res.sendStatus(409);
+  }
+
+  await registerUser({ orgId, orgName, email, role: 'organization', hashedPassword, address, phoneNumber });
+});
+
+router.post('/registerUser', async (req, res) => {
+  console.log('Register User!!!');
+  console.log(req.body);
+
+  let userName = req.body.userName;
+  let name = req.body.name;
+  let dob = req.body.dob;
+  let photo = req.body.photo;
+
   let password = req.body.password;
   let hashedPassword = await userUtils.encryptPassword(password);
   let address = req.body.address;

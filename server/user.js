@@ -54,26 +54,15 @@ exports.getUserList = async function () {
   return userList;
 };
 
-// exports.getUserList = async function () {
-//   const userList = await this.getUserList();
-
-//   if (!userList) {
-//     return;
-//   }
-//   const patientList = userList.filter((user) => user.attrs.find((attr) => attr.name === 'role' && attr.value === 'user'));
-
-//   return patientList;
-// };
-
 exports.getOrgList = async function () {
   const userList = await this.getUserList();
 
   if (!userList) {
     return;
   }
-  const doctorList = userList.filter((user) => user.attrs.find((attr) => attr.name === 'role' && attr.value === 'organization'));
+  const orgList = userList.filter((user) => user.attrs.find((attr) => attr.name === 'role' && attr.value === 'organization'));
 
-  return doctorList;
+  return orgList;
 };
 
 exports.getUserById = async function (userId) {
